@@ -1,0 +1,131 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+
+```{r, echo=TRUE}
+library("plyr")
+library("dplyr")
+library("lubridate")
+library("lattice")
+```
+
+### Read activity data file
+```{r, echo=TRUE}
+where<-getwd()
+print(where)
+activitydata<-read.csv("activity.csv")
+adstr<-str(activitydata)
+adhead<-head(activitydata)
+print(adstr)
+print(adhead)
+```
+
+## What is mean total number of steps taken per day?
+### sum number steps per day
+
+```{r, echo=TRUE}
+StepsbyDate <-aggregate(activitydata$steps ~ activitydata$date, data=activitydata, FUN=sum)
+colnames(StepsbyDate)<-c("date","steps")
+maxSBD<-range(StepsbyDate$steps)
+maxval<-maxSBD[2]+5000
+breaks= seq(5000,maxval, by=5000)
+```
+## plot histogram based on steps per day
+
+```{r, echo=TRUE}
+
+SBD<-StepsbyDate$steps
+SBD.cut = cut(SBD,breaks,right=FALSE)
+SBD.cut
+SBD.freq=table(SBD.cut)
+hist(SBD,main="Total Number Steps Taken per Day")
+SBDmean<-mean(SBD)
+SBDmedian<-median(SBD)
+print(SBDmean)
+print(SBDmedian)
+```
+
+## What is the average daily activity pattern?
+
+```{r,echo=TRUE}
+StepsbyInterval <-aggregate(activitydata$steps ~ activitydata$interval, data=activitydata,  FUN=ave)
+colnames(StepsbyInterval)<-c("interval","steps")
+SBI<-data.frame()
+SBI<-cbind(StepsbyInterval$interval,StepsbyInterval$steps[,1])
+plot(x=SBI[,1],y=SBI[,2],type="l", main="Average Daily Steps/Activity",xlab="Interval",ylab="Average number of steps")
+```
+
+### determine interval with max steps
+```{r,echo=TRUE}
+MaxSteps<-max(SBI[,2])
+MaxInterval<-SBI[which.max(SBI[,2])]
+print(MaxSteps)
+print(MaxInterval)
+```
+## Imputing missing values
+### determine NA values for Steps, data and interval 
+
+```{r,echo=TRUE}
+sum(is.na(activitydata$steps))
+sum(is.na(activitydata$date))
+sum(is.na(activitydata$interval))
+total<-sum(is.na(activitydata$steps))+sum(is.na(activitydata$date))+sum(is.na(activitydata$interval))
+```
+### Total missing values =
+```{r,echo=TRUE}
+print(total)
+```
+### create copy of the dataset and fill in NA values with the overall data mean determined above.
+
+```{r}
+newval<-0
+activitydata2<-activitydata
+allobs<-length(activitydata2$steps)
+DailyAvg <- activitydata2 %>% filter(steps >= 0) %>% 
+    group_by(date) %>% summarize(total = sum(steps), avg = mean(steps))
+for (i in 1:allobs) {
+  if (is.na(activitydata2$steps[i])){
+  activitydata2$steps[i]<-DailyAvg[,2]
+  } else {
+    }
+  }
+
+```
+
+### recreate the histogram with the new dataset
+```{r, echo=TRUE}
+StepsbyDate <-aggregate(activitydata$steps ~ activitydata$date, data=activitydata, FUN=sum)
+colnames(StepsbyDate)<-c("date","steps")
+maxSBD<-range(StepsbyDate$steps)
+maxval<-maxSBD[2]+5000
+breaks= seq(5000,maxval, by=5000)
+SBD2<-StepsbyDate$steps
+SBD2.cut = cut(SBD,breaks,right=FALSE)
+SBD2.freq=table(SBD.cut)
+hist(SBD,main="Dataset with Mean Replacement for NA - Total Number Steps Taken per Day")
+SBDmean<-mean(SBD)
+SBDmedian<-median(SBD)
+print(SBDmean)
+print(SBDmedian)
+```
+## Are there differences in activity patterns between weekdays and weekends?
+
+### separate weekdays and weekend days.
+
+```{r, echo= TRUE}
+activitydata$DayoWeek<-weekdays(as.Date(activitydata$date))
+
+activitydata$DayType<-with(activitydata,ifelse(DayoWeek == "Saturday" | DayoWeek == "Saturday", "weekend", "weekday"))
+```
+## plot the steps by time series weekend vs weekday
+
+``` {r, echo=TRUE}
+group_by(activitydata,DayType,interval)
+xyplot(activitydata$steps ~ activitydata$interval | activitydata$DayType, xlab = "Interval", ylab="Average # of Steps",type="l", layout=c(1,2))
+```
